@@ -1,7 +1,7 @@
 # PARALLEL — KPI Dashboard
 
 > Auto-updated daily by `kpi-snapshot.yml` workflow.
-> Last updated: 2026-05-29
+> Last updated: 2026-05-29 — Phase 0 artifacts complete (7/7 produced, 4/7 DoD confirmed)
 
 ---
 
@@ -26,13 +26,13 @@
 
 | ID | Artifact | Owner | Status | DoD |
 |----|----------|-------|--------|-----|
-| 0.1 | Vision Document v1 | Architect | ⬜ Not started | — |
-| 0.2 | First-Principles Spec | Architect | ⬜ Not started | — |
-| 0.3 | Ethical Charter | Compliance | ⬜ Not started | — |
-| 0.4 | Market Sizing Model | Research | ⬜ Not started | — |
-| 0.5 | Competitive Teardown | Research | ⬜ Not started | — |
-| 0.6 | Cap Table Simulation | Finance | ⬜ Not started | — |
-| 0.7 | Patent Strategy (8 patents) | Compliance | ⬜ Not started | — |
+| 0.1 | Vision Document v1 | Architect | 🟡 Awaiting 5 advisor reviews | [vision-v1.md](../00-vision/vision-v1.md) |
+| 0.2 | First-Principles Spec | Architect | ✅ Complete | [first-principles-spec.md](../00-vision/first-principles-spec.md) |
+| 0.3 | Ethical Charter | Compliance | 🟡 Awaiting ethics board sign-off | [ethical-charter-v1.md](../05-compliance/ethical-charter-v1.md) |
+| 0.4 | Market Sizing Model | Research | ✅ Complete — TAM $534B ✅ | [market-sizing-v1.md](../07-research/market-sizing-v1.md) |
+| 0.5 | Competitive Teardown | Research | ✅ Complete — 25 competitors, blue space ID'd | [competitive-teardown-v1.md](../07-research/competitive-teardown-v1.md) |
+| 0.6 | Cap Table Simulation | Finance | ✅ Complete — Founder 17.8% at IPO ✅ | [cap-table-simulation-v1.md](../06-finance/cap-table-simulation-v1.md) |
+| 0.7 | Patent Strategy (8 patents) | Compliance | 🟡 Disclosures complete — awaiting filing | [patent-strategy-v1.md](../05-compliance/patent-strategy-v1.md) |
 
 ---
 
