@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+.next/
+out/
+dist/
+.expo/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env*.local
+apps/mobile/.env
+
+# Supabase
+supabase/.branches
+supabase/.temp
+
+# Turbo
+.turbo
+
+# Misc
+.DS_Store
+*.pem
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.vercel
+
+# iOS/Android
+apps/mobile/ios/
+apps/mobile/android/
+apps/mobile/google-service-account.json
+
+# Test
+coverage/
