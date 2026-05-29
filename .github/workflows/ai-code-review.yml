@@ -1,0 +1,31 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  claude-review:
+    name: Claude Code Review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Claude Code Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          review_type: security_and_quality
+          custom_instructions: |
+            You are reviewing PARALLEL — an AI-native identity platform.
+            Pay special attention to:
+            1. Privacy: no PII in logs, E2E encryption respected
+            2. Crisis Layer: any changes to crisis-layer/ require extra scrutiny
+            3. Prompts: prompts must live in packages/prompt-library/, never hardcoded
+            4. Security: OWASP Top 10, injection attacks, auth boundaries
+            5. Performance: cost per MAU implications (target ≤$1.20 at 10M MAU)
+            Be concise. Flag P0/P1 issues clearly.

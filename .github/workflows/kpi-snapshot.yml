@@ -1,0 +1,31 @@
+name: Daily KPI Snapshot
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # 9am UTC daily
+  workflow_dispatch:
+
+jobs:
+  kpi-snapshot:
+    name: Capture KPI Snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Fetch KPI data and update dashboard
+        env:
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: node scripts/kpi-snapshot.js
+      - name: Commit updated dashboard
+        run: |
+          git config user.name "KPI Bot"
+          git config user.email "kpi-bot@parallel.ai"
+          git add docs/09-gate-reviews/dashboard.md
+          git diff --staged --quiet || git commit -m "chore(kpi): daily snapshot $(date -u +%Y-%m-%d)"
+          git push

@@ -1,0 +1,30 @@
+name: Dependency Security Audit
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # 6am UTC daily
+  push:
+    paths:
+      - '**/package.json'
+      - '**/pnpm-lock.yaml'
+
+jobs:
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - run: pnpm audit --audit-level=high
+      - name: Create issue on critical vulnerability
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --repo ${{ github.repository }} \
+            --title "[P0][Security] Critical dependency vulnerability — $(date -u +%Y-%m-%d)" \
+            --body "pnpm audit found critical vulnerabilities. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --label "type:bug,priority:p0,risk:r3-breach"

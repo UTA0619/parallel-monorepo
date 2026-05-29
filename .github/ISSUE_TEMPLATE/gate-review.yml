@@ -1,0 +1,74 @@
+name: "Gate Review"
+description: Stage Gate Review — KPI scorecard, Red Team, Compliance, Decision
+title: "[Gate X] Stage Review — Phase X"
+labels: ["type:gate-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Stage Gate Review
+        Complete all sections. Decision cannot be recorded until all sign-offs are attached.
+
+  - type: input
+    id: phase_number
+    attributes:
+      label: Phase Number
+      placeholder: "0, 1, 2, 3, 4, or 5"
+    validations:
+      required: true
+
+  - type: textarea
+    id: kpi_scorecard
+    attributes:
+      label: KPI Scorecard
+      value: |
+        | KPI | Target | Actual | Pass? |
+        |-----|--------|--------|-------|
+        | D30 Retention | ≥50% | — | ⬜ |
+        | Affection Score | ≥0.6 | — | ⬜ |
+        | Insight Action Rate | ≥25% | — | ⬜ |
+        | Cost/MAU | ≤$1.20 | — | ⬜ |
+        | NPS | ≥50 | — | ⬜ |
+    validations:
+      required: true
+
+  - type: textarea
+    id: red_team
+    attributes:
+      label: Red Team Findings
+      placeholder: "Summary of adversarial testing results. List any P0/P1 findings."
+    validations:
+      required: true
+
+  - type: textarea
+    id: compliance
+    attributes:
+      label: Compliance Sign-off
+      placeholder: "Ethics, legal, privacy review summary. Sign-off by compliance board member."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: decision
+    attributes:
+      label: Gate Decision
+      options:
+        - "✅ PROCEED — All KPIs met, advance to next phase"
+        - "🔄 ITERATE — KPIs partially met, extend current phase"
+        - "⚠️ PIVOT — Plan B activated"
+        - "🛑 KILL — Fundamental flaws, shut down"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: plan_b
+    attributes:
+      label: Plan B Triggered?
+      options:
+        - label: Yes — Plan B activated (document reason below)
+
+  - type: textarea
+    id: plan_b_notes
+    attributes:
+      label: Plan B / Next Actions
+      placeholder: "If Plan B triggered, describe the pivot. Otherwise, list top 3 actions for next phase."

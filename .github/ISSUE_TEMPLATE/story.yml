@@ -1,0 +1,61 @@
+name: "Story"
+description: User-facing feature (decomposed from Epic)
+title: "[Story] "
+labels: ["type:story"]
+body:
+  - type: markdown
+    attributes:
+      value: "## Story — PARALLEL User Feature"
+
+  - type: textarea
+    id: user_story
+    attributes:
+      label: User Story
+      value: |
+        **As a** [persona: Aiko 27 Tokyo creative / Marcus 35 NYC PM / Lin 19 LA student]
+        **I want** [goal]
+        **So that** [outcome]
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria (Gherkin)
+      placeholder: |
+        Given [context]
+        When [action]
+        Then [expected result]
+        And [additional result]
+    validations:
+      required: true
+
+  - type: textarea
+    id: telemetry
+    attributes:
+      label: Telemetry Events (PostHog schema)
+      placeholder: |
+        - event: parallel_report_opened
+          properties: { parallel_id, user_id, session_id, affection_score }
+        - event: parallel_insight_actioned
+          properties: { insight_id, action_type, parallel_id }
+    validations:
+      required: true
+
+  - type: textarea
+    id: ab_test
+    attributes:
+      label: A/B Test Plan
+      placeholder: |
+        Variant A (control): ...
+        Variant B: ...
+        Success metric: ...
+        Sample size: ...
+
+  - type: input
+    id: parent_epic
+    attributes:
+      label: Parent Epic
+      placeholder: "#42"
+    validations:
+      required: true

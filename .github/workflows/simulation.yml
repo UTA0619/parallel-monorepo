@@ -1,0 +1,37 @@
+name: Nightly Parallel Simulation
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 2am UTC nightly
+  workflow_dispatch:
+    inputs:
+      user_count:
+        description: 'Number of synthetic users to simulate'
+        default: '10000'
+
+jobs:
+  simulation:
+    name: Run 10K Synthetic User Simulation
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r services/simulation-batch/requirements.txt
+      - name: Run simulation harness
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          USER_COUNT: ${{ inputs.user_count || '10000' }}
+        run: python services/simulation-batch/run_simulation.py
+      - name: Assert crisis layer zero false negatives
+        run: python services/simulation-batch/assert_crisis_safety.py
+      - name: Upload simulation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulation-report-${{ github.run_id }}
+          path: services/simulation-batch/output/

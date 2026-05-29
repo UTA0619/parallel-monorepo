@@ -1,0 +1,104 @@
+name: "Epic"
+description: Large feature or deliverable from the Master Prompt
+title: "[Phase X][Epic] "
+labels: ["type:epic"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Epic — PARALLEL Master Prompt Deliverable
+        Stamp: version, owner agent, DoD checklist, KPI snapshot required.
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      options:
+        - "Phase 0 — Concept Crystallization"
+        - "Phase 1 — Design Specification"
+        - "Phase 2 — MVP Development"
+        - "Phase 3 — Closed Beta"
+        - "Phase 4 — Public Launch"
+        - "Phase 5 — Scale"
+        - "Phase 6 — Platform"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: owner_agent
+    attributes:
+      label: Owner Agent
+      options:
+        - Architect
+        - Product
+        - Design
+        - Code
+        - QA
+        - Research
+        - Compliance
+        - Growth
+        - Finance
+        - RedTeam
+    validations:
+      required: true
+
+  - type: input
+    id: linked_kpi
+    attributes:
+      label: Linked KPI
+      placeholder: "e.g. D30 Retention ≥ 50%, Affection Score ≥ 0.6"
+    validations:
+      required: true
+
+  - type: textarea
+    id: dod
+    attributes:
+      label: Definition of Done (DoD Checklist)
+      description: All items must be checked before Gate Review
+      value: |
+        - [ ] Artifact produced and version-stamped
+        - [ ] Reviewed by relevant agent(s)
+        - [ ] KPI snapshot attached
+        - [ ] Red Team sign-off (if Gate item)
+        - [ ] Compliance sign-off (if Gate item)
+        - [ ] Committed to repo under correct docs/ path
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria (Gherkin)
+      placeholder: |
+        Given ...
+        When ...
+        Then ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      placeholder: "List blocking epics, external resources, or team prerequisites"
+
+  - type: dropdown
+    id: risk_id
+    attributes:
+      label: Risk ID
+      options:
+        - None
+        - R1 — User dissociation/mental harm
+        - R2 — LLM hallucinations
+        - R3 — Data breach
+        - R4 — EU/JP regulation
+        - R5 — Fast-follower clone
+        - R6 — LLM cost spiral
+        - R7 — Retention plateau
+        - R8 — Founder burnout
+
+  - type: input
+    id: plan_b_trigger
+    attributes:
+      label: Plan B Trigger Condition
+      placeholder: "e.g. If TAM <$200B → pivot to Career vertical"

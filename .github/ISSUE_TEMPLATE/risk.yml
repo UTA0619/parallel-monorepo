@@ -1,0 +1,58 @@
+name: "Risk"
+description: Track a risk from the Risk Register (R1–R8)
+title: "[Risk RX] "
+labels: ["agent:compliance"]
+body:
+  - type: dropdown
+    id: risk_id
+    attributes:
+      label: Risk ID
+      options:
+        - "R1 — User dissociation/mental harm"
+        - "R2 — LLM hallucinations shape bad choices"
+        - "R3 — Data breach"
+        - "R4 — EU AI Act / JP AI Law non-compliance"
+        - "R5 — Meta/Google fast-follower clone"
+        - "R6 — LLM cost spiral"
+        - "R7 — Retention plateau"
+        - "R8 — Founder burnout"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: likelihood
+    attributes:
+      label: Likelihood
+      options: ["Low", "Medium", "High"]
+    validations:
+      required: true
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact
+      options: ["Low", "High", "Critical"]
+    validations:
+      required: true
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Current Mitigation
+    validations:
+      required: true
+
+  - type: input
+    id: owner
+    attributes:
+      label: Owner
+      placeholder: "Agent or team name"
+    validations:
+      required: true
+
+  - type: textarea
+    id: plan_b
+    attributes:
+      label: Plan B (if risk materializes)
+    validations:
+      required: true

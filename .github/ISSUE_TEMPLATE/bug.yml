@@ -1,0 +1,50 @@
+name: "Bug Report"
+description: Report a bug in PARALLEL
+title: "[Bug] "
+labels: ["type:bug"]
+body:
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - "P0 — Critical (data loss, security, Crisis Layer failure)"
+        - "P1 — High (core flow broken)"
+        - "P2 — Normal (degraded experience)"
+        - "P3 — Low (cosmetic)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction Steps
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Stack Trace
+      render: text
+
+  - type: dropdown
+    id: affected_phase
+    attributes:
+      label: Affected Phase
+      options:
+        - Phase 0, Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, Phase 6

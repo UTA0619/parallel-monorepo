@@ -1,0 +1,33 @@
+# PARALLEL — CODEOWNERS
+# Auto-route reviews to responsible teams
+
+# Default: all changes require architect review
+*                                   @UTA0619
+
+# Rust self-fork runtime — architect team
+/services/orchestrator-rs/          @UTA0619
+
+# Crisis layer — compliance + architect (dual sign-off required)
+/services/crisis-layer/             @UTA0619
+
+# Prompt library — product + compliance (no unauthorized prompt changes)
+/packages/prompt-library/           @UTA0619
+
+# Compliance docs — compliance team only
+/docs/05-compliance/                @UTA0619
+
+# Architecture docs and ADRs — architect team
+/docs/02-architecture/              @UTA0619
+/docs/adrs/                         @UTA0619
+
+# Infrastructure — SRE team
+/infra/                             @UTA0619
+
+# Gate review docs — requires founder sign-off
+/docs/09-gate-reviews/              @UTA0619
+
+# Finance models — finance + founder
+/docs/06-finance/                   @UTA0619
+
+# Master prompt — architect + product
+/prompts/master-prompt-v2.md        @UTA0619

@@ -1,0 +1,28 @@
+name: Prompt Regression Tests
+
+on:
+  pull_request:
+    paths:
+      - 'packages/prompt-library/**'
+      - 'prompts/**'
+
+jobs:
+  prompt-eval:
+    name: Prompt Eval Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run prompt regression tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          pip install -r packages/prompt-library/requirements.txt
+          python packages/prompt-library/eval/run_evals.py
+      - name: Upload eval results
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt-eval-${{ github.run_id }}
+          path: packages/prompt-library/eval/output/
