@@ -81,7 +81,7 @@ export default function OnboardingScreen() {
 
         {/* Progress bar */}
         <View style={s.progressTrack}>
-          <View style={[s.progressFill, { width: `${progress * 100}%` as unknown as number }]} />
+          <View style={[s.progressFill, { width: `${progress * 100}%` }]} />
         </View>
 
         {/* Phase label */}

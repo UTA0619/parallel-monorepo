@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   RefreshControl, ActivityIndicator,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { supabase } from "../../src/lib/supabase";
 import { colors } from "../../src/lib/theme";
@@ -12,6 +13,7 @@ type ParallelRow = Pick<Parallel, "id" | "name" | "description" | "affection_sco
 type ReportRow = Pick<DailyReport, "id" | "parallel_id" | "narrative" | "opened_at">;
 
 export default function DashboardScreen() {
+  const insets = useSafeAreaInsets();
   const [parallels, setParallels] = useState<ParallelRow[]>([]);
   const [reports, setReports] = useState<Map<string, ReportRow>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -61,7 +63,7 @@ export default function DashboardScreen() {
 
   return (
     <View style={s.container}>
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: insets.top + 16 }]}>
         <Text style={s.headerSub}>{greeting}, {displayName.split(" ")[0] || "traveler"}</Text>
         <Text style={s.headerTitle}>
           {parallels.length === 0
@@ -94,7 +96,7 @@ export default function DashboardScreen() {
                 <Text style={s.narrative} numberOfLines={3}>{report.narrative}</Text>
               )}
               <View style={s.barTrack}>
-                <View style={[s.barFill, { width: `${(item.affection_score ?? 0) * 100}%` as unknown as number }]} />
+                <View style={[s.barFill, { width: `${(item.affection_score ?? 0) * 100}%` }]} />
               </View>
               <Text style={s.barLabel}>{Math.round((item.affection_score ?? 0) * 100)}% affection</Text>
             </TouchableOpacity>
@@ -123,7 +125,7 @@ export default function DashboardScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   center: { justifyContent: "center", alignItems: "center" },
-  header: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 20 },
+  header: { paddingHorizontal: 20, paddingBottom: 20 },
   headerSub: { fontSize: 13, color: colors.dim, marginBottom: 4 },
   headerTitle: { fontSize: 22, fontWeight: "700", color: colors.text },
   list: { padding: 16, gap: 12 },

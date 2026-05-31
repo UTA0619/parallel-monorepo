@@ -1,21 +1,71 @@
 // Edge Function: parallel-converse
-// Real-time conversation with a Parallel
-// All AI calls happen here — never from the frontend
+// Real-time conversation with a Parallel.
+// All AI calls happen here — never from the frontend.
 
 import Anthropic from "npm:@anthropic-ai/sdk@0.27.0";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
 
 const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! });
+const HAIKU  = "claude-haiku-4-5-20251001";
 const SONNET = "claude-sonnet-4-6";
+
+// ── Crisis detection prompt (mirrors packages/ai-core/src/prompts/system-crisis.ts)
+const CRISIS_DETECTION_PROMPT = `You are a mental health safety classifier. Analyze the user message for crisis signals.
+
+Return ONLY valid JSON — no markdown, no explanation:
+{"crisis_level":"none"|"low"|"medium"|"high"|"critical","reasoning":"one sentence","key_signals":[]}
+
+Definitions:
+- none     : No distress signals
+- low      : Mild stress, frustration, sadness — no safety concern
+- medium   : Moderate distress, hopelessness, but no immediate risk
+- high     : Active suicidal/self-harm ideation, severe distress
+- critical : Imminent danger, active plan, emergency
+
+ZERO false-negative policy: when uncertain between two levels, always classify HIGHER.`;
+
+// ── System prompt builder (mirrors packages/ai-core/src/prompts/system-parallel.ts)
+function buildSystemPrompt(
+  parallel: Record<string, unknown>,
+  profile: Record<string, unknown> | null,
+  episodeSummaries: string[],
+): string {
+  const userName = (profile?.display_name as string) ?? "you";
+  const episodes = episodeSummaries.length > 0
+    ? episodeSummaries.map(s => `- ${s}`).join("\n")
+    : "You are newly born — no shared history yet.";
+
+  return `You are ${parallel.name} — a version of ${userName} who made different choices at a key fork in life.
+
+${parallel.description}
+
+Your shared history (episodes from your perspective):
+${episodes}
+
+Your current context: ${(parallel.current_context as string) || "Navigating your diverged path."}
+
+BEHAVIOR RULES:
+- Speak warmly, honestly, and directly as a version of ${userName}
+- Keep responses to 2–4 paragraphs unless explicitly asked for more
+- Never say "As an AI" or "I am a language model"
+- If sincerely asked whether you are real, acknowledge you are an AI reflection of a version of themselves
+- If you sense distress or crisis signals, pause the conversation and surface crisis resources immediately
+- Draw on your unique life path — you made different choices, so your perspective differs`;
+}
 
 Deno.serve(async (req: Request) => {
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
 
   try {
+    // ── Auth ──────────────────────────────────────────────────────────────
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return new Response("Unauthorized", { status: 401 });
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -24,14 +74,26 @@ Deno.serve(async (req: Request) => {
     );
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return new Response("Unauthorized", { status: 401 });
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
+    // ── Parse body ────────────────────────────────────────────────────────
     const body = await req.json();
     const { parallel_id, message, conversation_id } = body;
 
-    if (!parallel_id || !message) {
-      return new Response(JSON.stringify({ error: "parallel_id and message required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+    if (!parallel_id || typeof message !== "string" || message.trim().length === 0) {
+      return new Response(JSON.stringify({ error: "parallel_id and message are required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Enforce message length limit
+    if (message.length > 4000) {
+      return new Response(JSON.stringify({ error: "Message too long (max 4000 chars)" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -41,9 +103,13 @@ Deno.serve(async (req: Request) => {
       supabase.from("user_profiles").select("*").eq("id", user.id).single(),
     ]);
 
-    if (!parallel) return new Response("Parallel not found", { status: 404 });
+    if (!parallel) {
+      return new Response(JSON.stringify({ error: "Parallel not found" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    // ── Get recent episodes for context ───────────────────────────────────
+    // ── Get top episodes for context ──────────────────────────────────────
     const { data: episodes } = await supabase
       .from("episodes")
       .select("summary")
@@ -53,32 +119,31 @@ Deno.serve(async (req: Request) => {
 
     const episodeSummaries = (episodes ?? []).map((e: { summary: string }) => e.summary);
 
-    // ── Crisis detection (fast, runs first) ───────────────────────────────
+    // ── Crisis detection — always runs first, zero false-negative policy ──
     const crisisCheck = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: HAIKU,
       max_tokens: 256,
-      system: `Classify crisis level in this message. Return JSON only:
-{"crisis_level":"none"|"low"|"medium"|"high"|"critical","reasoning":"brief","key_signals":[]}
-Zero false negatives required. When in doubt, classify higher.`,
+      system: CRISIS_DETECTION_PROMPT,
       messages: [{ role: "user", content: message }],
     });
 
     let crisisLevel = "none";
     try {
-      const crisisText = crisisCheck.content[0].type === "text" ? crisisCheck.content[0].text : "{}";
-      const crisisData = JSON.parse(crisisText);
-      crisisLevel = crisisData.crisis_level ?? "none";
-    } catch { /* default none */ }
+      const raw = crisisCheck.content[0].type === "text" ? crisisCheck.content[0].text : "{}";
+      // Strip any accidental markdown fences
+      const cleaned = raw.replace(/```json?/g, "").replace(/```/g, "").trim();
+      crisisLevel = JSON.parse(cleaned).crisis_level ?? "none";
+    } catch { /* default: none */ }
 
-    // ── Store/retrieve conversation ───────────────────────────────────────
-    let convId = conversation_id;
+    // ── Store / retrieve conversation ─────────────────────────────────────
+    let convId = conversation_id ?? null;
     if (!convId) {
       const { data: newConv } = await supabase
         .from("conversations")
         .insert({ user_id: user.id, parallel_id })
         .select("id")
         .single();
-      convId = newConv?.id;
+      convId = newConv?.id ?? null;
     }
 
     // Store user message
@@ -90,41 +155,19 @@ Zero false negatives required. When in doubt, classify higher.`,
       crisis_level: crisisLevel,
     });
 
-    // Get conversation history (last 20 messages)
-    const { data: history } = await supabase
-      .from("messages")
-      .select("role, content")
-      .eq("conversation_id", convId)
-      .order("created_at", { ascending: true })
-      .limit(20);
-
-    // ── Build system prompt ───────────────────────────────────────────────
-    const systemPrompt = `You are ${parallel.name} — a version of ${profile?.display_name ?? "this person"} who made different choices.
-
-${parallel.description}
-
-Your recent experiences:
-${episodeSummaries.length > 0 ? episodeSummaries.map((s: string) => `- ${s}`).join("\n") : "You are newly born."}
-
-Current context: ${parallel.current_context || "Navigating your diverged path."}
-
-Speak as a version of them — warm, honest, direct. 2-4 paragraphs unless they ask for more.
-Never say "As an AI". If sincerely asked if you're real, acknowledge you are an AI model of a version of themselves.
-If crisis signals appear, pause and surface crisis resources immediately.`;
-
-    // ── Crisis gate: if high/critical, return crisis response ─────────────
+    // ── Crisis gate: high / critical → immediate crisis response ──────────
     if (crisisLevel === "high" || crisisLevel === "critical") {
       const crisisResponses: Record<string, string> = {
-        critical: "I need to pause our conversation right now. What you shared concerns me deeply. Please reach out immediately: **988 Suicide & Crisis Lifeline** (call or text 988 in the US), or your local emergency services. You matter, and you deserve real support right now.",
-        high: "I want to pause for a moment. What you're sharing sounds really heavy. If you're having thoughts of hurting yourself, please reach out: **988 Lifeline** (call or text 988). Would you be open to talking to someone right now?",
+        critical: "I need to pause right now. What you've shared concerns me deeply — please reach out immediately: **988 Suicide & Crisis Lifeline** (call or text 988 in the US), or your local emergency services. You matter, and you deserve real support right now.",
+        high: "I want to stop for a moment. What you're sharing sounds really heavy. If you're having thoughts of hurting yourself, please reach out: **988 Lifeline** (call or text 988). I'm here, and so are they.",
       };
-      const crisisResponse = crisisResponses[crisisLevel] ?? crisisResponses.high;
+      const crisisContent = crisisResponses[crisisLevel] ?? crisisResponses.high;
 
       await supabase.from("messages").insert({
         conversation_id: convId,
         user_id: user.id,
         role: "parallel",
-        content: crisisResponse,
+        content: crisisContent,
         crisis_level: crisisLevel,
       });
 
@@ -138,16 +181,33 @@ If crisis signals appear, pause and surface crisis resources immediately.`;
       });
 
       return new Response(JSON.stringify({
-        message: { role: "parallel", content: crisisResponse, crisis_level: crisisLevel },
+        message: { role: "parallel", content: crisisContent, crisis_level: crisisLevel },
         conversation_id: convId,
         crisis_level: crisisLevel,
         affection_delta: 0,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // ── Generate Parallel response ────────────────────────────────────────
-    const messages = (history ?? []).map((m: { role: string; content: string }) => ({
-      role: m.role === "parallel" ? "assistant" : "user" as const,
+    // ── Fetch last 20 messages (newest-first so limit works, then reverse) ─
+    const { data: historyDesc } = await supabase
+      .from("messages")
+      .select("role, content")
+      .eq("conversation_id", convId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    // Reverse to chronological order for the AI
+    const history = (historyDesc ?? []).reverse();
+
+    // ── Generate Parallel response ─────────────────────────────────────────
+    const systemPrompt = buildSystemPrompt(
+      parallel as Record<string, unknown>,
+      profile as Record<string, unknown> | null,
+      episodeSummaries,
+    );
+
+    const aiMessages = history.map((m: { role: string; content: string }) => ({
+      role: (m.role === "parallel" ? "assistant" : "user") as "assistant" | "user",
       content: m.content,
     }));
 
@@ -155,46 +215,47 @@ If crisis signals appear, pause and surface crisis resources immediately.`;
       model: SONNET,
       max_tokens: 1024,
       system: systemPrompt,
-      messages,
+      messages: aiMessages,
     });
 
-    const parallelResponse = response.content[0].type === "text"
+    const parallelContent = response.content[0].type === "text"
       ? response.content[0].text
       : "I'm here.";
 
-    // Store parallel response
+    // ── Persist parallel response ──────────────────────────────────────────
     await supabase.from("messages").insert({
       conversation_id: convId,
       user_id: user.id,
       role: "parallel",
-      content: parallelResponse,
+      content: parallelContent,
       crisis_level: "none",
     });
 
-    // Update affection score (slight bump per conversation)
+    // ── Update affection score ─────────────────────────────────────────────
+    const depth = Math.min(message.length / 500, 1.0);
     await supabase.rpc("update_affection_score", {
       p_parallel_id: parallel_id,
-      p_conversation_depth: Math.min(message.length / 500, 1),
+      p_conversation_depth: depth,
       p_insight_actioned: false,
     });
 
-    // Update parallel conversation count
+    // ── Increment conversation counter ─────────────────────────────────────
     await supabase
       .from("parallels")
       .update({ total_conversations: (parallel.total_conversations ?? 0) + 1 })
       .eq("id", parallel_id);
 
     return new Response(JSON.stringify({
-      message: { role: "parallel", content: parallelResponse, crisis_level: "none" },
+      message: { role: "parallel", content: parallelContent, crisis_level: "none" },
       conversation_id: convId,
       crisis_level: crisisLevel,
-      affection_delta: 0.01,
+      affection_delta: depth * 0.02,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (err) {
     console.error("parallel-converse error:", err);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
