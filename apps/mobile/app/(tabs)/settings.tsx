@@ -3,8 +3,10 @@ import {
   View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView,
 } from "react-native";
 import { router } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { supabase } from "../../src/lib/supabase";
 import { colors } from "../../src/lib/theme";
+import { getCustomerInfo, resolveSubscriptionTier } from "../../src/lib/purchases";
 
 export default function SettingsScreen() {
   const [email, setEmail] = useState("");
@@ -25,6 +27,11 @@ export default function SettingsScreen() {
       if (data) {
         setDisplayName(data.display_name ?? "");
         setTier(data.subscription_tier ?? "free");
+      }
+      // Sync live entitlement from RevenueCat
+      const customerInfo = await getCustomerInfo();
+      if (customerInfo) {
+        setTier(resolveSubscriptionTier(customerInfo));
       }
     }
     load();
@@ -145,6 +152,31 @@ export default function SettingsScreen() {
             <Text style={s.infoVal}>{parallelLimit}</Text>
           </View>
         </View>
+        {tier === "free" ? (
+          <TouchableOpacity
+            style={s.upgradeBtn}
+            onPress={async () => {
+              await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push("/paywall");
+            }}
+            accessibilityLabel="Upgrade your plan"
+            accessibilityRole="button"
+          >
+            <Text style={s.upgradeBtnText}>✦ Upgrade to Plus or Infinite →</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={s.manageBtn}
+            onPress={async () => {
+              await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/paywall");
+            }}
+            accessibilityLabel="Manage subscription"
+            accessibilityRole="button"
+          >
+            <Text style={s.manageBtnText}>Manage subscription →</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Account actions */}
@@ -267,4 +299,14 @@ const s = StyleSheet.create({
     fontSize: 11, color: colors.dim + "70",
     textAlign: "center", marginTop: 8, lineHeight: 16,
   },
+  upgradeBtn: {
+    marginTop: 10, backgroundColor: colors.accent,
+    borderRadius: 12, paddingVertical: 13, alignItems: "center",
+  },
+  upgradeBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  manageBtn: {
+    marginTop: 10, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 12, paddingVertical: 13, alignItems: "center",
+  },
+  manageBtnText: { color: colors.dim, fontSize: 14 },
 });

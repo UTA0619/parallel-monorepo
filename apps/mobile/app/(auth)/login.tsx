@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from "react-native";
 import { Link, router } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { supabase } from "../../src/lib/supabase";
 import { colors } from "../../src/lib/theme";
 
@@ -14,12 +15,15 @@ export default function LoginScreen() {
 
   async function handleLogin() {
     if (!email || !password) return;
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("Sign in failed", error.message);
     } else {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/(tabs)/dashboard");
     }
   }

@@ -76,6 +76,16 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      "expo-haptics",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#7B6CF6",
+          "sounds": [],
+          "mode": "production"
+        }
+      ],
       [
         "expo-splash-screen",
         {

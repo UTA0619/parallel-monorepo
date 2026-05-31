@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView,
 } from "react-native";
 import { router } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { supabase } from "../src/lib/supabase";
 import { colors } from "../src/lib/theme";
 
@@ -26,6 +27,7 @@ export default function OnboardingScreen() {
 
   async function handleNext() {
     if (!answers[step].trim()) return;
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (step < FORK_PROMPTS.length - 1) {
       setStep(s => s + 1);
       return;

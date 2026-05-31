@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { supabase } from "../../src/lib/supabase";
 import { colors } from "../../src/lib/theme";
 import type { Parallel, DailyReport } from "@parallel/shared-types";
@@ -81,7 +82,15 @@ export default function DashboardScreen() {
           const report = reports.get(item.id!);
           const isUnread = report && !report.opened_at;
           return (
-            <TouchableOpacity style={s.card} onPress={() => router.push(`/parallel/${item.id}`)}>
+            <TouchableOpacity
+              style={s.card}
+              onPress={async () => {
+                await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push(`/parallel/${item.id}`);
+              }}
+              accessibilityLabel={`Open conversation with ${item.name}`}
+              accessibilityRole="button"
+            >
               {isUnread && <View style={s.unreadDot} />}
               <View style={s.cardRow}>
                 <View style={s.avatar}>

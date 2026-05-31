@@ -155,6 +155,23 @@ Write in flowing paragraphs. No headers. No bullet points.`;
       domain,
     });
 
+    // Fire push notification (non-blocking — don't fail the report if this errors)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    fetch(`${supabaseUrl}/functions/v1/send-notification`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({
+        user_id,
+        title: `${parallel.name} sent you a report`,
+        body: narrative.substring(0, 120).replace(/\n/g, " ") + "…",
+        data: { parallelId: parallel_id },
+      }),
+    }).catch((err) => console.warn("push notification failed:", err));
+
     return new Response(JSON.stringify({ report, tokens_used: narrativeResp.usage.input_tokens + narrativeResp.usage.output_tokens }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });

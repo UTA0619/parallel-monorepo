@@ -33,6 +33,11 @@
     "react-native-screens": "3.31.1",
     "react-native-svg": "15.2.0",
     "@expo/vector-icons": "^14.0.0",
+    "@react-native-community/netinfo": "11.3.1",
+    "expo-haptics": "~13.0.1",
+    "expo-notifications": "~0.28.15",
+    "react-native-purchases": "^7.26.0",
+    "react-native-purchases-ui": "^7.26.0",
     "zustand": "^4.5.2"
   },
   "devDependencies": {

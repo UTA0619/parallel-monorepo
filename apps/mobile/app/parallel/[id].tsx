@@ -2,12 +2,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator, Linking, Alert,
+  NativeSyntheticEvent, NativeScrollEvent,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { supabase } from "../../src/lib/supabase";
 import { colors } from "../../src/lib/theme";
 import type { Parallel } from "@parallel/shared-types";
+
+const PAGE_SIZE = 20;
 
 interface Message {
   id: string;
@@ -34,7 +38,10 @@ export default function ConversationScreen() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [crisisLevel, setCrisisLevel] = useState("none");
   const [crisisDismissed, setCrisisDismissed] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const listRef = useRef<FlatList>(null);
+  const oldestCreatedAt = useRef<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -67,9 +74,12 @@ export default function ConversationScreen() {
           .from("messages")
           .select("id,role,content,crisis_level,created_at")
           .eq("conversation_id", latestConv.id)
-          .order("created_at", { ascending: true })
-          .limit(40);
-        setMessages((msgs ?? []) as Message[]);
+          .order("created_at", { ascending: false })
+          .limit(PAGE_SIZE);
+        const ordered = (msgs ?? []).reverse() as Message[];
+        setMessages(ordered);
+        setHasMore((msgs ?? []).length === PAGE_SIZE);
+        if (ordered.length > 0) oldestCreatedAt.current = ordered[0].created_at;
       }
 
       // ── Mark today's daily report as opened ───────────────────────────
@@ -87,11 +97,40 @@ export default function ConversationScreen() {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
   }, []);
 
+  const loadOlderMessages = useCallback(async () => {
+    if (!conversationId || !hasMore || loadingMore || !oldestCreatedAt.current) return;
+    setLoadingMore(true);
+    try {
+      const { data: older } = await supabase
+        .from("messages")
+        .select("id,role,content,crisis_level,created_at")
+        .eq("conversation_id", conversationId)
+        .lt("created_at", oldestCreatedAt.current)
+        .order("created_at", { ascending: false })
+        .limit(PAGE_SIZE);
+      const ordered = (older ?? []).reverse() as Message[];
+      if (ordered.length > 0) {
+        oldestCreatedAt.current = ordered[0].created_at;
+        setMessages(prev => [...ordered, ...prev]);
+      }
+      setHasMore(ordered.length === PAGE_SIZE);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [conversationId, hasMore, loadingMore]);
+
+  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (e.nativeEvent.contentOffset.y < 60) {
+      loadOlderMessages();
+    }
+  }, [loadOlderMessages]);
+
   async function sendMessage() {
     if (!input.trim() || loading) return;
     const text = input.trim();
     setInput("");
     setLoading(true);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     // Optimistic message with proper UUID
     const optimisticId = crypto.randomUUID();
@@ -256,6 +295,8 @@ export default function ConversationScreen() {
         keyExtractor={m => m.id}
         contentContainerStyle={s.messageList}
         renderItem={renderMessage}
+        onScroll={handleScroll}
+        scrollEventThrottle={200}
         // Only auto-scroll when user is near the bottom
         onContentSizeChange={() => {
           if (messages.length > 0) {
@@ -263,6 +304,13 @@ export default function ConversationScreen() {
           }
         }}
         maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+        ListHeaderComponent={
+          loadingMore ? (
+            <View style={s.loadingMore}>
+              <ActivityIndicator size="small" color={colors.accent} />
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={s.emptyMessages}>
             <Text style={s.emptyText}>
@@ -407,4 +455,5 @@ const s = StyleSheet.create({
   },
   sendBtnDisabled: { opacity: 0.4 },
   sendBtnText: { color: "#fff", fontSize: 18, fontWeight: "700" },
+  loadingMore: { paddingVertical: 12, alignItems: "center" },
 });
