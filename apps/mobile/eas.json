@@ -1,20 +1,45 @@
 {
   "cli": {
-    "version": ">= 10.0.0"
+    "version": ">= 10.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
+    "base": {
+      "node": "20.x",
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://your-project.supabase.co"
+      }
+    },
     "development": {
+      "extends": "base",
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "development",
+      "ios": {
+        "simulator": true
+      }
     },
     "preview": {
+      "extends": "base",
       "distribution": "internal",
+      "channel": "preview",
       "ios": {
         "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
-      "autoIncrement": true
+      "extends": "base",
+      "autoIncrement": true,
+      "channel": "production",
+      "ios": {
+        "resourceClass": "m-medium"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {
@@ -22,11 +47,14 @@
       "ios": {
         "appleId": "your@apple.id",
         "ascAppId": "your-app-store-connect-id",
-        "appleTeamId": "YOUR_TEAM_ID"
+        "appleTeamId": "YOUR_TEAM_ID",
+        "language": "en-US",
+        "releaseStatus": "MANUAL"
       },
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",
-        "track": "internal"
+        "track": "internal",
+        "releaseStatus": "draft"
       }
     }
   }

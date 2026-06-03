@@ -43,7 +43,7 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Notification tap handler — deep-link to the relevant Parallel
+  // Notification tap handler — deep-link to the relevant Parallel (foreground + background)
   useEffect(() => {
     const cleanup = setupNotificationListeners(
       (_notification) => {
@@ -57,6 +57,18 @@ export default function RootLayout() {
       }
     );
     return cleanup;
+  }, []);
+
+  // Cold-launch deep link — app was killed, user tapped notification to open it
+  useEffect(() => {
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      const parallelId = response.notification.request.content.data?.parallelId as string | undefined;
+      if (parallelId) {
+        // Delay slightly so the navigator is mounted before pushing
+        setTimeout(() => router.push(`/parallel/${parallelId}`), 200);
+      }
+    });
   }, []);
 
   useEffect(() => {

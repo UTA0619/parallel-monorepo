@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator, Linking, Alert,
-  NativeSyntheticEvent, NativeScrollEvent,
+  NativeSyntheticEvent, NativeScrollEvent, Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
@@ -363,19 +363,36 @@ export default function ConversationScreen() {
   );
 }
 
-// Animated typing indicator
+// Animated typing indicator — each dot pulses in sequence
 function TypingDots() {
+  const anims = useMemo(() => [0, 1, 2].map(() => new Animated.Value(0.3)), []);
+
+  useEffect(() => {
+    const animations = anims.map((anim, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(i * 160),
+          Animated.timing(anim, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(anim, { toValue: 0.3, duration: 300, useNativeDriver: true }),
+          Animated.delay((2 - i) * 160),
+        ])
+      )
+    );
+    animations.forEach(a => a.start());
+    return () => animations.forEach(a => a.stop());
+  }, [anims]);
+
   return (
     <View style={td.row} accessibilityLabel="Parallel is typing">
-      {[0, 1, 2].map(i => (
-        <View key={i} style={[td.dot, { opacity: 0.4 + i * 0.2 }]} />
+      {anims.map((anim, i) => (
+        <Animated.View key={i} style={[td.dot, { opacity: anim }]} />
       ))}
     </View>
   );
 }
 const td = StyleSheet.create({
-  row: { flexDirection: "row", gap: 4, alignItems: "center", paddingVertical: 4 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent },
+  row: { flexDirection: "row", gap: 5, alignItems: "center", paddingVertical: 4 },
+  dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: colors.accent },
 });
 
 const s = StyleSheet.create({

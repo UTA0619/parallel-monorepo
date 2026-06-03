@@ -7,7 +7,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-parallel-bg px-8 py-16 max-w-3xl mx-auto">
       <Link href="/" className="text-parallel-dim hover:text-parallel-text text-sm transition-colors">← Back</Link>
       <h1 className="font-display font-bold text-3xl text-parallel-text mt-8 mb-2">Privacy Policy</h1>
-      <p className="text-parallel-dim text-sm mb-10">Last updated: January 1, 2025</p>
+      <p className="text-parallel-dim text-sm mb-10">Last updated: June 3, 2026</p>
 
       <div className="space-y-8 text-parallel-dim leading-relaxed text-sm">
         <section>

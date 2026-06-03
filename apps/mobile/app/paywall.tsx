@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
+import * as Linking from "expo-linking";
 import Purchases, { type PurchasesPackage } from "react-native-purchases";
 import { getOffering, restorePurchases, resolveSubscriptionTier } from "../src/lib/purchases";
 import { supabase } from "../src/lib/supabase";
@@ -229,9 +230,26 @@ export default function PaywallScreen() {
 
         <Text style={s.legal}>
           {Platform.OS === "ios"
-            ? "Payment charged to your Apple ID. Cancel anytime in App Store Settings."
-            : "Payment charged to your Google account. Cancel anytime."}
+            ? "Payment charged to your Apple ID. Subscription auto-renews unless cancelled at least 24 hours before the end of the current period. Cancel anytime in App Store Settings."
+            : "Payment charged to your Google account. Cancel anytime in Play Store Settings."}
         </Text>
+        <View style={s.legalLinks}>
+          <TouchableOpacity
+            onPress={() => Linking.openURL(`${process.env.EXPO_PUBLIC_WEB_URL ?? "https://parallel.app"}/privacy`)}
+            accessibilityRole="link"
+            accessibilityLabel="Privacy Policy"
+          >
+            <Text style={s.legalLink}>Privacy Policy</Text>
+          </TouchableOpacity>
+          <Text style={s.legalDot}>·</Text>
+          <TouchableOpacity
+            onPress={() => Linking.openURL(`${process.env.EXPO_PUBLIC_WEB_URL ?? "https://parallel.app"}/terms`)}
+            accessibilityRole="link"
+            accessibilityLabel="Terms of Use"
+          >
+            <Text style={s.legalLink}>Terms of Use</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -300,4 +318,10 @@ const s = StyleSheet.create({
     fontSize: 10, color: colors.dim + "60",
     textAlign: "center", marginTop: 8, lineHeight: 14,
   },
+  legalLinks: {
+    flexDirection: "row", justifyContent: "center",
+    alignItems: "center", gap: 6, marginTop: 8,
+  },
+  legalLink: { fontSize: 10, color: colors.dim + "80", textDecorationLine: "underline" },
+  legalDot: { fontSize: 10, color: colors.dim + "40" },
 });
