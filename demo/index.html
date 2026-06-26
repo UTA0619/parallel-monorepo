@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PARALLEL — Interactive Demo</title>
+<style>
+  :root {
+    --bg: #0A0B0F; --surface: #141620; --border: #1E2130;
+    --accent: #7B6CF6; --warm: #F6A26C; --muted: #4A5170;
+    --text: #E8EAF0; --dim: #8892A8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  button { font-family: inherit; cursor: pointer; border: none; }
+  textarea, input { font-family: inherit; }
+  a { color: inherit; text-decoration: none; }
+
+  .glow { position: fixed; border-radius: 50%; pointer-events: none; filter: blur(120px); z-index: 0; }
+  .glow-1 { top: 18%; left: 22%; width: 380px; height: 380px; background: rgba(123,108,246,0.10); }
+  .glow-2 { bottom: 22%; right: 20%; width: 280px; height: 280px; background: rgba(246,162,108,0.07); }
+
+  .screen { position: relative; z-index: 1; min-height: 100vh; animation: fade .5s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  @keyframes bounce { 0%,80%,100% { transform: translateY(0); opacity: .4; } 40% { transform: translateY(-4px); opacity: 1; } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+  .glass { background: rgba(20,22,32,0.8); backdrop-filter: blur(12px); border: 1px solid rgba(123,108,246,0.15); }
+  .grad-text { background: linear-gradient(135deg,#7B6CF6,#F6A26C); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .avatar { background: linear-gradient(135deg, rgba(123,108,246,.6), rgba(246,162,108,.4)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; flex-shrink:0; }
+
+  .btn-primary { background: var(--accent); color:#fff; font-weight:500; border-radius:12px; padding:14px 28px; font-size:15px; transition: all .2s; }
+  .btn-primary:hover { background:#8b7df7; box-shadow: 0 8px 30px rgba(123,108,246,.3); }
+  .btn-primary:disabled { opacity:.4; cursor:not-allowed; box-shadow:none; }
+  .btn-ghost { border:1px solid var(--border); color:var(--text); border-radius:12px; padding:14px 28px; font-size:15px; background:transparent; transition: all .2s; }
+  .btn-ghost:hover { border-color: rgba(123,108,246,.4); }
+
+  .demo-badge {
+    position: fixed; top: 14px; right: 14px; z-index: 50;
+    background: rgba(123,108,246,.15); border:1px solid rgba(123,108,246,.3);
+    color: var(--accent); font-size: 11px; font-weight: 600; letter-spacing: 1px;
+    padding: 5px 12px; border-radius: 20px; text-transform: uppercase;
+  }
+  .restart {
+    position: fixed; bottom: 14px; right: 14px; z-index: 50;
+    background: rgba(20,22,32,.9); border:1px solid var(--border); color: var(--dim);
+    font-size: 12px; padding: 7px 14px; border-radius: 20px; transition: all .2s;
+  }
+  .restart:hover { color: var(--text); border-color: rgba(123,108,246,.4); }
+
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 32px; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+</style>
+</head>
+<body>
+  <div class="glow glow-1"></div>
+  <div class="glow glow-2"></div>
+  <div class="demo-badge">● Demo Mode</div>
+  <button class="restart" onclick="App.restart()">↺ Restart demo</button>
+  <div id="root"></div>
+
+<script>
+/* ============================================================================
+   PARALLEL — Interactive Demo (zero-dependency, no backend)
+   Simulated identity-OS: fork ritual → dashboard → in-persona conversations.
+   The "AI" is a local persona-driven response engine. No network calls.
+============================================================================ */
+
+const SEED_PARALLELS = [
+  {
+    id: "p1", name: "Tokyo Self", initial: "T",
+    description: "The one who moved abroad and found a different kind of courage.",
+    affection: 0.72, divergence: 0.61, status: "active",
+    fork: "You stayed. This one boarded the flight to Tokyo with two suitcases and no plan.",
+    report: "I got lost in Shimokitazawa again today — on purpose this time. There's a particular freedom in being illegible to everyone around you; no one here carries the weight of who you were supposed to become. I notice you still measure days by what you finished. Over here I've started measuring them by what surprised me. What surprised you today?",
+    voice: {
+      lens: "distance and reinvention",
+      openers: ["From over here, ", "Six time zones away, I think ", "The version of us who left would say "],
+      values: ["courage isn't loud — it's just doing the unfamiliar thing twice", "roots can be chosen, not only inherited", "being a stranger is underrated medicine"],
+    },
+  },
+  {
+    id: "p2", name: "The Entrepreneur", initial: "E",
+    description: "Took the leap. Some days brilliant, some days terrifying.",
+    affection: 0.58, divergence: 0.74, status: "active",
+    fork: "You took the stable offer. This one declined it and started building the thing.",
+    report: "Payroll cleared at 11:58pm — two minutes of margin I'll feel in my spine for a week. But a customer emailed to say the product changed how her team works, and I read it four times. You optimize for not-losing; I keep betting on winning big, and the variance is brutal. Tell me honestly — when you play it safe, does it feel like peace or like a held breath?",
+    voice: {
+      lens: "risk, ambition and the cost of betting on yourself",
+      openers: ["Here's the founder's read: ", "Running on 5 hours of sleep, I'd say ", "Every bet teaches the same lesson — "],
+      values: ["safety has a price tag too; it's just paid quietly", "momentum beats motivation", "the downside is rarely as fatal as the imagination claims"],
+    },
+  },
+  {
+    id: "p3", name: "The One Who Stayed", initial: "S",
+    description: "Chose roots over adventure. Found depth instead of breadth.",
+    affection: 0.81, divergence: 0.34, status: "active",
+    fork: "You chased the new city. This one stayed, and let things grow slowly.",
+    report: "Had coffee with the same friend I've had coffee with for nine years. We barely talked — just sat. There's a kind of richness that only shows up when you stop moving long enough for it to find you. I sense you're restless lately, scanning the horizon. I'm not judging it. But what if the thing you're looking for needs you to stay still to notice it?",
+    voice: {
+      lens: "depth, presence and the quiet life",
+      openers: ["Speaking softly, ", "From the slow lane, ", "The one who stayed would gently say "],
+      values: ["depth is a function of time, not intensity", "presence is a skill, not a mood", "the ordinary is not the enemy of the meaningful"],
+    },
+  },
+];
+
+const REFLECT = {
+  work:    { kw: ["work","job","career","boss","project","deadline","office","quit","promotion","startup","money","salary"], theme: "the work" },
+  love:    { kw: ["love","relationship","partner","wife","husband","girlfriend","boyfriend","date","lonely","marriage","family","friend"], theme: "the people you love" },
+  fear:    { kw: ["afraid","fear","scared","anxious","worry","nervous","stuck","fail","failure","lost","overwhelmed"], theme: "the fear under it" },
+  regret:  { kw: ["regret","wish","should have","mistake","missed","too late","if only","wrong","wrong"], theme: "the road not taken" },
+  meaning: { kw: ["meaning","purpose","why","point","empty","matter","happy","happiness","fulfilled","identity","who am i"], theme: "what it's all for" },
+};
+const CRISIS_KW = ["suicide","kill myself","end it","want to die","no reason to live","hurt myself","self harm","worthless and want"];
+
+function detectTheme(text) {
+  const t = text.toLowerCase();
+  for (const k of CRISIS_KW) if (t.includes(k)) return "crisis";
+  let best = null, bestHits = 0;
+  for (const [name, def] of Object.entries(REFLECT)) {
+    const hits = def.kw.reduce((n, w) => n + (t.includes(w) ? 1 : 0), 0);
+    if (hits > bestHits) { bestHits = hits; best = name; }
+  }
+  return best || "open";
+}
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function generateReply(parallel, userText) {
+  const theme = detectTheme(userText);
+  if (theme === "crisis") {
+    return {
+      crisis: true,
+      text: "I'm reading what you wrote, and I'm not going to look away from it. You are the core I'm built from — your life is not disposable to me. Please talk to someone who can be fully present with you right now: in the US call or text 988, anywhere you can reach a crisis line. I'll be right here too. Will you reach out to one of them with me?",
+    };
+  }
+  const v = parallel.voice;
+  const opener = pick(v.openers);
+  const value = pick(v.values);
+  const themed = {
+    work:    `what you're carrying about ${REFLECT.work.theme} sounds heavy. `,
+    love:    `${REFLECT.love.theme} — that's the part that actually matters, and you led with it. `,
+    fear:    `I can hear ${REFLECT.fear.theme}, even in how carefully you phrased it. `,
+    regret:  `you're standing at ${REFLECT.regret.theme} again. I literally am that road. `,
+    meaning: `you're asking about ${REFLECT.meaning.theme}. Good — most people never ask it out loud. `,
+    open:    `I read that twice. `,
+  }[theme];
+  const closer = pick([
+    "What would change if you let that be true for one week?",
+    "Sit with this: what are you actually protecting by not deciding?",
+    "Here's my question back — what's the smallest version of the brave thing?",
+    "So tell me, and be honest: what do you already know that you're avoiding?",
+    "If we swapped lives for a day, what would you want me to do differently?",
+  ]);
+  return {
+    crisis: false,
+    text: `${opener}${themed}Through my lens — ${v.lens} — ${value}. ${closer}`,
+  };
+}
+
+/* ----------------------------- tiny framework ----------------------------- */
+const FORK_PROMPTS = [
+  "What's one major life choice you made that you still wonder about — the road not taken?",
+  "In that alternate path, what would you have become? Describe that version of you.",
+  "What value or belief would that version hold differently than you do now?",
+  "What's one thing that version of you would tell you right now?",
+  "Give this Parallel a name — the identity they'd claim in their world.",
+];
+
+const App = {
+  state: {
+    route: "landing",          // landing | onboarding | dashboard | convo
+    activeId: null,
+    parallels: JSON.parse(JSON.stringify(SEED_PARALLELS)),
+    convos: {},                // id -> [{role, content, crisis}]
+    opened: {},                // id -> true once report read
+    onbStep: 0,
+    onbAnswers: ["", "", "", "", ""],
+    userName: "traveler",
+    typing: false,
+  },
+
+  restart() {
+    try { localStorage.removeItem("parallel_demo"); } catch (e) {}
+    this.state = {
+      route: "landing", activeId: null,
+      parallels: JSON.parse(JSON.stringify(SEED_PARALLELS)),
+      convos: {}, opened: {}, onbStep: 0,
+      onbAnswers: ["", "", "", "", ""], userName: "traveler", typing: false,
+    };
+    this.render();
+  },
+
+  go(route, id) { this.state.route = route; if (id) this.state.activeId = id; this.render(); window.scrollTo(0,0); },
+
+  esc(s) { return (s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); },
+
+  render() {
+    const r = this.state.route;
+    const root = document.getElementById("root");
+    if (r === "landing") root.innerHTML = this.Landing();
+    else if (r === "onboarding") root.innerHTML = this.Onboarding();
+    else if (r === "dashboard") root.innerHTML = this.Dashboard();
+    else if (r === "convo") { root.innerHTML = this.Convo(); this.scrollConvo(); this.focusInput(); }
+  },
+
+  /* ------------------------------- LANDING ------------------------------- */
+  Landing() {
+    const cards = this.state.parallels.map((p, i) => `
+      <div class="glass" style="border-radius:18px;padding:22px;text-align:left;animation:slideUp .6s ease ${0.1*i}s both">
+        <div class="avatar" style="width:40px;height:40px;border-radius:50%;font-size:14px;margin-bottom:14px">${i+1}</div>
+        <h3 style="font-weight:600;margin-bottom:6px">${p.name}</h3>
+        <p style="color:var(--dim);font-size:13px;line-height:1.5">${this.esc(p.description)}</p>
+        <div style="margin-top:14px;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--accent)">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite"></span>Reporting daily
+        </div>
+      </div>`).join("");
+    const steps = [
+      ["01","The 7-minute ritual","You narrate 5 forks in your life. At each one, a Parallel is born — a version of you who chose differently."],
+      ["02","They live their lives","Your Parallels diverge. They accumulate memories and perspective from paths you didn't take. Not chatbots — versions of you."],
+      ["03","Morning dispatches","Each morning, every Parallel reports back. Not generic advice — observation filtered through their specific life."],
+      ["04","Conversations across paths","Tap any Parallel to talk. They remember your history. They know you, because they are you."],
+    ].map(s => `
+      <div style="display:flex;gap:28px;align-items:flex-start">
+        <span class="mono" style="font-size:34px;font-weight:700;color:rgba(123,108,246,.2);width:54px;flex-shrink:0">${s[0]}</span>
+        <div><h3 style="font-size:19px;font-weight:600;margin-bottom:6px">${s[1]}</h3>
+        <p style="color:var(--dim);line-height:1.6">${s[2]}</p></div>
+      </div>`).join("");
+    return `<div class="screen">
+      <nav class="wrap" style="display:flex;justify-content:space-between;align-items:center;padding-top:24px;padding-bottom:24px">
+        <span style="font-weight:700;font-size:20px;letter-spacing:-.5px">PARALLEL</span>
+        <button class="btn-primary" style="padding:9px 18px;font-size:14px" onclick="App.go('onboarding')">Get early access</button>
+      </nav>
+      <main class="wrap" style="text-align:center;padding-top:80px;padding-bottom:100px">
+        <p class="mono" style="color:rgba(123,108,246,.8);font-size:13px;letter-spacing:3px;text-transform:uppercase;margin-bottom:22px">Identity OS</p>
+        <h1 style="font-size:clamp(40px,7vw,72px);font-weight:700;line-height:1.05;margin-bottom:22px">
+          Live 100 lives.<br><span class="grad-text">Choose the best one.</span></h1>
+        <p style="color:var(--dim);font-size:clamp(17px,2.2vw,21px);max-width:620px;margin:0 auto 44px;line-height:1.6">
+          Multiple versions of you — each one a path you didn't take — running in parallel.
+          Every morning, they report back with what they've learned.</p>
+        <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
+          <button class="btn-primary" style="padding:16px 32px;font-size:16px" onclick="App.go('onboarding')">Start your ritual →</button>
+          <button class="btn-ghost" style="padding:16px 32px;font-size:16px" onclick="App.go('dashboard')">Skip to the dashboard</button>
+        </div>
+        <div style="margin-top:90px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">${cards}</div>
+      </main>
+      <section class="wrap" style="max-width:780px;padding-top:40px;padding-bottom:90px">
+        <h2 style="font-size:30px;font-weight:700;text-align:center;margin-bottom:56px">How PARALLEL works</h2>
+        <div style="display:flex;flex-direction:column;gap:44px">${steps}</div>
+      </section>
+      <section style="text-align:center;padding:0 32px 100px">
+        <div class="glass" style="max-width:620px;margin:0 auto;border-radius:26px;padding:48px">
+          <h2 style="font-size:28px;font-weight:700;margin-bottom:14px">Your other selves are waiting.</h2>
+          <p style="color:var(--dim);margin-bottom:30px">This is a live demo. No signup, no backend — just click through and feel the product.</p>
+          <button class="btn-primary" onclick="App.go('onboarding')">Begin the ritual →</button>
+        </div>
+      </section>
+    </div>`;
+  },
+
+  /* ----------------------------- ONBOARDING ------------------------------ */
+  Onboarding() {
+    const step = this.state.onbStep;
+    const total = FORK_PROMPTS.length;
+    const isLast = step === total - 1;
+    const val = this.esc(this.state.onbAnswers[step]);
+    const progress = ((step + 1) / total) * 100;
+    return `<div class="screen wrap" style="max-width:620px;padding-top:72px;padding-bottom:60px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <span style="font-weight:700;letter-spacing:2px;font-size:15px">PARALLEL</span>
+        <span style="color:var(--dim);font-size:13px">${step+1} / ${total}</span>
+      </div>
+      <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:46px">
+        <div style="height:100%;width:${progress}%;background:linear-gradient(90deg,var(--accent),var(--warm));border-radius:2px;transition:width .4s"></div>
+      </div>
+      <p class="mono" style="color:var(--accent);font-size:12px;letter-spacing:2px;margin-bottom:22px">THE FORK RITUAL</p>
+      <h2 style="font-size:23px;font-weight:600;line-height:1.4;margin-bottom:30px">${FORK_PROMPTS[step]}</h2>
+      <textarea id="onb" rows="4" placeholder="Your answer…"
+        oninput="App.onbInput(this.value)"
+        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;color:var(--text);font-size:15px;resize:none;outline:none;line-height:1.6;min-height:120px">${val}</textarea>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:24px">
+        ${step > 0 ? `<button class="btn-ghost" style="padding:13px 20px" onclick="App.onbBack()">← Back</button>` : ""}
+        <button class="btn-primary" id="onbNext" style="flex:1" ${val.trim() ? "" : "disabled"} onclick="App.onbNext()">
+          ${isLast ? "Begin the divergence →" : "Continue →"}</button>
+      </div>
+      ${step === 0 ? `<p style="color:rgba(136,146,168,.6);font-size:12px;text-align:center;margin-top:22px;line-height:1.6">
+        This ritual creates your first Parallel — an AI self shaped by the path you didn't take.<br>
+        (In this demo, you'll meet three pre-seeded Parallels after the ritual.)</p>` : ""}
+    </div>`;
+  },
+  onbInput(v) {
+    this.state.onbAnswers[this.state.onbStep] = v;
+    const btn = document.getElementById("onbNext");
+    if (btn) btn.disabled = !v.trim();
+  },
+  onbBack() { if (this.state.onbStep > 0) { this.state.onbStep--; this.render(); } },
+  onbNext() {
+    const s = this.state;
+    if (!s.onbAnswers[s.onbStep].trim()) return;
+    if (s.onbStep < FORK_PROMPTS.length - 1) { s.onbStep++; this.render(); return; }
+    // Use their last answer (the name) to personalize the first Parallel
+    const newName = s.onbAnswers[4].trim().slice(0, 24) || "Your First Fork";
+    s.parallels[0] = Object.assign({}, s.parallels[0], {
+      name: newName, initial: newName[0].toUpperCase(),
+      description: s.onbAnswers[1].trim().slice(0, 80) || s.parallels[0].description,
+      report: "I was just born from the fork you described — \"" + (s.onbAnswers[0].trim().slice(0,90) || "the choice you still wonder about") + "\". I'm still learning who I am on this side of it. " + s.parallels[0].report,
+    });
+    this.go("dashboard");
+  },
+
+  /* ----------------------------- DASHBOARD ------------------------------- */
+  Dashboard() {
+    const s = this.state;
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+    const unread = s.parallels.filter(p => !s.opened[p.id]).length;
+    const top = s.parallels[0];
+    const cards = s.parallels.map((p, i) => {
+      const isUnread = !s.opened[p.id];
+      return `
+      <div onclick="App.openConvo('${p.id}')" class="glass" style="border-radius:18px;padding:20px;cursor:pointer;position:relative;animation:slideUp .5s ease ${i*0.07}s both;transition:transform .2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+        ${isUnread ? `<span style="position:absolute;top:16px;right:16px;width:8px;height:8px;border-radius:50%;background:var(--warm);animation:pulse 2s infinite"></span>` : ""}
+        <div style="display:flex;gap:14px;margin-bottom:14px">
+          <div class="avatar" style="width:40px;height:40px;border-radius:50%;font-size:15px">${this.esc(p.initial)}</div>
+          <div style="min-width:0">
+            <h3 style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${this.esc(p.name)}</h3>
+            <p style="color:var(--dim);font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${this.esc(p.description)}</p>
+          </div>
+        </div>
+        <p style="color:var(--dim);font-size:12.5px;line-height:1.6;margin-bottom:16px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${this.esc(p.report)}</p>
+        <div style="height:3px;background:var(--border);border-radius:2px;overflow:hidden">
+          <div style="height:100%;width:${p.affection*100}%;background:linear-gradient(90deg,var(--accent),rgba(246,162,108,.7));border-radius:2px;transition:width 1s"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <span style="color:rgba(136,146,168,.5);font-size:11px">affection</span>
+          <span style="color:rgba(136,146,168,.5);font-size:11px">${Math.round(p.affection*100)}%</span>
+        </div>
+      </div>`;
+    }).join("");
+    return `<div class="screen">
+      <header style="border-bottom:1px solid rgba(30,33,48,.5);padding:16px 32px;display:flex;justify-content:space-between;align-items:center">
+        <span onclick="App.go('landing')" style="font-weight:700;font-size:18px;cursor:pointer">PARALLEL</span>
+        <div style="display:flex;align-items:center;gap:14px">
+          ${unread > 0 ? `<span style="padding:3px 11px;background:rgba(246,162,108,.18);color:var(--warm);border-radius:20px;font-size:12px;font-weight:500">${unread} new ${unread===1?"report":"reports"}</span>` : ""}
+          <div class="avatar" style="width:32px;height:32px;border-radius:50%;font-size:13px;background:rgba(123,108,246,.2);color:var(--accent)">${this.state.userName[0].toUpperCase()}</div>
+        </div>
+      </header>
+      <main class="wrap" style="max-width:880px;padding-top:40px;padding-bottom:60px">
+        <div style="margin-bottom:36px;animation:slideUp .5s ease both">
+          <p style="color:var(--dim);font-size:14px;margin-bottom:4px">${greeting}, ${this.esc(this.state.userName)}</p>
+          <h1 style="font-size:30px;font-weight:700">Your ${s.parallels.length} Parallels have reported in.</h1>
+        </div>
+        <div class="glass" style="border-radius:18px;padding:24px;border-left:2px solid var(--accent);margin-bottom:36px;animation:slideUp .5s ease .1s both">
+          <p class="mono" style="color:var(--accent);font-size:11px;letter-spacing:3px;text-transform:uppercase;margin-bottom:12px">Today's top insight</p>
+          <p style="line-height:1.7;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden">${this.esc(top.report)}</p>
+          <p style="color:var(--dim);font-size:12px;margin-top:14px">— from <span onclick="App.openConvo('${top.id}')" style="color:var(--accent);cursor:pointer">${this.esc(top.name)}</span></p>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px">
+          ${cards}
+          <div onclick="App.go('onboarding')" style="border-radius:18px;border:1px dashed rgba(30,33,48,.7);padding:20px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:200px;transition:border-color .2s" onmouseover="this.style.borderColor='rgba(123,108,246,.4)'" onmouseout="this.style.borderColor='rgba(30,33,48,.7)'">
+            <div style="width:40px;height:40px;border-radius:50%;border:1px dashed rgba(123,108,246,.4);display:flex;align-items:center;justify-content:center;color:rgba(123,108,246,.6);font-size:22px">+</div>
+            <p style="color:rgba(136,146,168,.6);font-size:13px;text-align:center">Fork a new Parallel</p>
+          </div>
+        </div>
+      </main>
+    </div>`;
+  },
+  openConvo(id) { this.state.opened[id] = true; this.go("convo", id); },
+
+  /* ------------------------------- CONVO --------------------------------- */
+  Convo() {
+    const s = this.state;
+    const p = s.parallels.find(x => x.id === s.activeId);
+    const msgs = s.convos[p.id] || [];
+    const crisisActive = msgs.some(m => m.crisis);
+    const bubbles = msgs.length === 0 ? `
+      <div style="text-align:center;padding:60px 0">
+        <p style="color:rgba(136,146,168,.6);font-style:italic;font-size:14px">Your conversation with ${this.esc(p.name)} begins here.</p>
+        <p style="color:rgba(136,146,168,.4);font-size:12px;margin-top:8px">${this.esc(p.description)}</p>
+        <p style="color:rgba(123,108,246,.5);font-size:12px;margin-top:18px">Try: "I've been feeling stuck at work" · or ask them anything</p>
+      </div>` : msgs.map(m => {
+      const isUser = m.role === "user";
+      return `<div style="display:flex;justify-content:${isUser?"flex-end":"flex-start"};animation:slideUp .35s ease both">
+        ${!isUser ? `<div class="avatar" style="width:28px;height:28px;border-radius:50%;font-size:11px;margin-right:12px;margin-top:4px">${this.esc(p.initial)}</div>` : ""}
+        <div style="max-width:74%;border-radius:16px;padding:11px 15px;font-size:14px;line-height:1.65;${isUser
+          ? "background:rgba(123,108,246,.2);border-bottom-right-radius:4px"
+          : "background:var(--surface);border:1px solid " + (m.crisis ? "rgba(127,29,29,.6)" : "var(--border)") + ";border-bottom-left-radius:4px"}">${this.esc(m.content)}</div>
+      </div>`;
+    }).join("");
+    const typing = s.typing ? `
+      <div style="display:flex;justify-content:flex-start">
+        <div class="avatar" style="width:28px;height:28px;border-radius:50%;margin-right:12px;margin-top:4px"></div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;border-bottom-left-radius:4px;padding:13px 15px">
+          <div style="display:flex;gap:5px">
+            ${[0,1,2].map(i=>`<span style="width:6px;height:6px;border-radius:50%;background:rgba(123,108,246,.7);animation:bounce 1.2s infinite ${i*0.15}s"></span>`).join("")}
+          </div>
+        </div>
+      </div>` : "";
+    const crisisBanner = crisisActive ? `
+      <div style="background:rgba(69,10,10,.5);border-bottom:1px solid rgba(127,29,29,.5);padding:14px 24px">
+        <p style="color:#FCA5A5;font-size:13px;font-weight:500;margin-bottom:8px">Your wellbeing matters. Resources available right now:</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${[["988 Lifeline (US)","tel:988"],["Crisis Text Line","sms:741741"],["International","https://www.iasp.info/resources/Crisis_Centres/"]].map(r=>
+            `<a href="${r[1]}" target="_blank" rel="noopener" style="padding:5px 12px;background:rgba(127,29,29,.4);color:#FCA5A5;border-radius:20px;font-size:12px">${r[0]}</a>`).join("")}
+        </div>
+      </div>` : "";
+    return `<div class="screen" style="display:flex;flex-direction:column;height:100vh">
+      <header style="border-bottom:1px solid rgba(30,33,48,.5);padding:14px 24px;display:flex;align-items:center;gap:16px;flex-shrink:0">
+        <span onclick="App.go('dashboard')" style="color:var(--dim);cursor:pointer;font-size:14px">← Back</span>
+        <div class="avatar" style="width:32px;height:32px;border-radius:50%;font-size:13px">${this.esc(p.initial)}</div>
+        <div>
+          <p style="font-size:14px;font-weight:500">${this.esc(p.name)}</p>
+          <p style="color:var(--dim);font-size:12px">Affection ${Math.round(p.affection*100)}% · Divergence ${Math.round(p.divergence*100)}%</p>
+        </div>
+      </header>
+      ${crisisBanner}
+      <div id="convoScroll" style="flex:1;overflow-y:auto;padding:32px 24px">
+        <div style="max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:20px">
+          ${bubbles}${typing}
+        </div>
+      </div>
+      <div style="border-top:1px solid rgba(30,33,48,.5);padding:16px 24px;flex-shrink:0">
+        <div style="max-width:720px;margin:0 auto;display:flex;gap:12px;align-items:flex-end">
+          <textarea id="msgInput" rows="1" placeholder="Talk to ${this.esc(p.name)}…"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();App.send();}"
+            style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 16px;color:var(--text);font-size:14px;resize:none;outline:none;line-height:1.5;max-height:120px"></textarea>
+          <button class="btn-primary" style="padding:12px 22px" onclick="App.send()">Send</button>
+        </div>
+        <p style="color:rgba(136,146,168,.3);font-size:11px;text-align:center;margin-top:8px">Simulated AI · responses generated locally, in-persona</p>
+      </div>
+    </div>`;
+  },
+  focusInput() { setTimeout(() => { const i = document.getElementById("msgInput"); if (i) i.focus(); }, 50); },
+  scrollConvo() { setTimeout(() => { const el = document.getElementById("convoScroll"); if (el) el.scrollTop = el.scrollHeight; }, 30); },
+
+  send() {
+    const s = this.state;
+    const input = document.getElementById("msgInput");
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text || s.typing) return;
+    const p = s.parallels.find(x => x.id === s.activeId);
+    if (!s.convos[p.id]) s.convos[p.id] = [];
+    s.convos[p.id].push({ role: "user", content: text, crisis: false });
+    input.value = "";
+    s.typing = true;
+    this.render();
+    // simulated thinking delay
+    const reply = generateReply(p, text);
+    const delay = 700 + Math.min(text.length * 14, 1400);
+    setTimeout(() => {
+      s.typing = false;
+      s.convos[p.id].push({ role: "parallel", content: reply.text, crisis: reply.crisis });
+      // affection grows slightly each exchange (capped)
+      p.affection = Math.min(0.99, p.affection + 0.02);
+      this.persist();
+      this.render();
+    }, delay);
+  },
+
+  persist() {
+    try {
+      localStorage.setItem("parallel_demo", JSON.stringify({
+        convos: this.state.convos, opened: this.state.opened,
+        parallels: this.state.parallels.map(p => ({ id: p.id, affection: p.affection })),
+      }));
+    } catch (e) { /* sandboxed iframe — ignore */ }
+  },
+  hydrate() {
+    try {
+      const raw = localStorage.getItem("parallel_demo");
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d.convos) this.state.convos = d.convos;
+      if (d.opened) this.state.opened = d.opened;
+      if (d.parallels) d.parallels.forEach(sp => {
+        const p = this.state.parallels.find(x => x.id === sp.id);
+        if (p && typeof sp.affection === "number") p.affection = sp.affection;
+      });
+    } catch (e) { /* ignore */ }
+  },
+};
+
+App.hydrate();
+App.render();
+</script>
+</body>
+</html>
